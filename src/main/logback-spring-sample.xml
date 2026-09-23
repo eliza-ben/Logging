@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Standard logback-spring.xml for services using com.novaflow:tracking-logging.
+    Copy into src/main/resources/logback-spring.xml. Every service using this
+    pattern produces log lines with the same shape, keyed on the single
+    resolved trackingId (runNodeId if present, else correlationId, else
+    generated), making cross-service Splunk correlation consistent.
+-->
+<configuration>
+
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <property name="LOG_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{trackingId}] %-5level %logger{36} - %msg%n"/>
+
+    <appender name="CONSOLE_TEXT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!--
+        Structured JSON for Splunk/ELK; requires:
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>7.4</version>
+        </dependency>
+    -->
+    <appender name="CONSOLE_JSON" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeMdcKeyName>trackingId</includeMdcKeyName>
+            <!-- Set per service so events are distinguishable in a shared index -->
+            <customFields>{"application":"CHANGE_ME"}</customFields>
+        </encoder>
+    </appender>
+
+    <springProfile name="local | dev">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE_TEXT"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="!local &amp; !dev">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE_JSON"/>
+        </root>
+    </springProfile>
+
+</configuration>
